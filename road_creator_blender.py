@@ -54,24 +54,24 @@ def create_arc(origin, heading, length, curvature,lane_data, quad_number = 10):
         plt[1].append(pt.y)
     return tot_lane_vertices
 def fresnel(L):
-    h = 0.0
+    h = 0.01
     s = lambda x: np.sin(x**2)
     c = lambda x: np.cos(x**2)
     sums = 0
-    for i in np.arange(h,L,0.01):
+    for i in np.arange(0,L,0.01):
         sums += s(i)
     sans = h*(0.5*s(0)+sums+0.5*s(L))
     sums = 0
-    for i in np.arange(h,L,0.01):
+    for i in np.arange(0,L,0.01):
         sums += c(i)
     cans = h*(0.5*c(0)+sums+0.5*c(L))
     return cans, sans
-def create_spiral_road(origin, hdg, length,curvStart, curvEnd, lane_data, quad_number =100):
+def create_spiral_road(origin, hdg, length,curvStart, curvEnd, lane_data, quad_number =10):
     if(curvStart==0):
         return spiral_line_to_curve(origin,hdg,length,curvEnd,lane_data)
     else:
         return spiral_curve_to_line(origin,hdg,length,curvStart,lane_data)
-def spiral_line_to_curve(origin, hdg, length,curvEnd, lane_data, quad_number =100):
+def spiral_line_to_curve(origin, hdg, length,curvEnd, lane_data, quad_number =10):
     '''Gives the set of chord line set of points for a spiral road when curvature starts from 0 to target'''
     tangent = Vector(math.cos(hdg), math.sin(hdg),0) #vec
     anti_clockwise = 1
@@ -111,7 +111,7 @@ def spiral_line_to_curve(origin, hdg, length,curvEnd, lane_data, quad_number =10
         total_pts.append(generate_lane_verts(pt,tangent,lane_data))
         # distance = distance + length/quad_number
     return total_pts
-def spiral_curve_to_line(origin, hdg, length,curvStart, lane_data, quad_number =100):
+def spiral_curve_to_line(origin, hdg, length,curvStart, lane_data, quad_number =10):
     '''Gives the set of chord line set of points for a spiral road when curvature starts from target to -ve'''
     print('entered')
     tangent = Vector(math.cos(hdg), math.sin(hdg),0) #vec
@@ -145,14 +145,13 @@ def spiral_curve_to_line(origin, hdg, length,curvStart, lane_data, quad_number =
         # deltax and deltay give coordinates for theta=0
         pt = pt.rotate(tangent2.argument())
         # Spiral is relative to the starting coordinates
-        pt = new_origin + pt
         current_hdg = distance_scaled*distance_scaled*anti_clockwise + hdg
         tangent = Vector(math.cos(current_hdg),math.sin(current_hdg),0)
         tangent = tangent.rotate(90*anti_clockwise)
         total_pts.append(generate_lane_verts(pt,tangent,lane_data))
         # total_pts[0].append(pt.x)
         # total_pts[1].append(pt.y)
-    return total_pts
+    return total_pts, new_origin
 def generate_lane_verts(pt, tangent, lane_data):
     result_pts= []
     result_pts.append(pt)
@@ -229,7 +228,10 @@ if (__name__ == "__main__"):
             if data.type == 'arc':
                 pts = create_arc(data.origin, data.hdg,data.length,data.curvature,lane_data)
             if data.type == 'spiral':
-                pts = create_spiral_road(data.origin, data.hdg, data.length, data.init_curvature, data.final_curvature, lane_data)
+                if data.init_curvature != 0: 
+                    pts, data.origin = create_spiral_road(data.origin, data.hdg, data.length, data.init_curvature, data.final_curvature, lane_data)
+                else:
+                    pts= create_spiral_road(data.origin, data.hdg, data.length, data.init_curvature, data.final_curvature, lane_data)
             verts = generate_blender_verts(pts)
             faces = generate_blender_faces(verts, lane_data)
             create_blender_mesh(verts,faces,data.origin,i)
