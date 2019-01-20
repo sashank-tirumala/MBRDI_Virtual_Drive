@@ -16,7 +16,7 @@ def create_straight_line(origin, heading, length,lane_data,quad_number = 10):
     tangent = Vector(math.cos(heading), math.sin(heading), 0)
     pt = Vector(0,0,0)
     tot_lane_vertices = []
-    for i in range(quad_number):
+    for i in range(quad_number+1):
         lane_verts = generate_lane_verts(pt, tangent, lane_data)
         tot_lane_vertices.append(lane_verts)
         pt = pt + tangent * (length/quad_number)
@@ -54,15 +54,15 @@ def create_arc(origin, heading, length, curvature,lane_data, quad_number = 10):
         plt[1].append(pt.y)
     return tot_lane_vertices
 def fresnel(L):
-    h = 0.01
+    h = 0.0
     s = lambda x: np.sin(x**2)
     c = lambda x: np.cos(x**2)
     sums = 0
-    for i in np.arange(h,L,h):
+    for i in np.arange(h,L,0.01):
         sums += s(i)
     sans = h*(0.5*s(0)+sums+0.5*s(L))
     sums = 0
-    for i in np.arange(h,L,h):
+    for i in np.arange(h,L,0.01):
         sums += c(i)
     cans = h*(0.5*c(0)+sums+0.5*c(L))
     return cans, sans
@@ -102,7 +102,6 @@ def spiral_line_to_curve(origin, hdg, length,curvEnd, lane_data, quad_number =10
         pt = pt.rotate(tangent.argument())
         current_tangent = current_tangent.rotate(tangent.argument())
         # Spiral is relative to the starting coordinates
-        pt = origin + pt
         # total_pts.append(generate_lane_verts(pt, current_tangent, lane_data))
         # data[0].append(pt.x)
         # data[1].append(pt.y)
@@ -111,7 +110,7 @@ def spiral_line_to_curve(origin, hdg, length,curvEnd, lane_data, quad_number =10
         tangent = Vector(math.cos(current_hdg),math.sin(current_hdg),0)
         total_pts.append(generate_lane_verts(pt,tangent,lane_data))
         # distance = distance + length/quad_number
-    return data
+    return total_pts
 def spiral_curve_to_line(origin, hdg, length,curvStart, lane_data, quad_number =100):
     '''Gives the set of chord line set of points for a spiral road when curvature starts from target to -ve'''
     print('entered')
@@ -211,7 +210,7 @@ def create_blender_mesh(verts, faces, origin, road_number):
     mesh.from_pydata(verts,[],faces)
     mesh.update(calc_edges=True)
 if (__name__ == "__main__"):
-    xml_path = 'C:/Users/stsas/blensor_scripts/test_debug.xodr'
+    xml_path = 'C:/Users/stsas/blensor_scripts/debug.xodr'
     tree = ET.parse(xml_path)
     root = tree.getroot()
     geoms = []
