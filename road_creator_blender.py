@@ -130,7 +130,7 @@ def spiral_curve_to_line(origin, hdg, length,curvStart, lane_data, quad_number =
     if anti_clockwise == -1: 
         final_hdg = Ltot**2-3.14
     
-    rot = hdg - final_hdg
+    rot = hdg - final_hdg +3.14
     print('rot: ',rot)
     tangent2 = Vector(math.cos(rot),math.sin(rot),0)
     new_origin = origin - Vector(x/a,-1*anti_clockwise*y/a,0).rotate(Vector(math.cos(rot),math.sin(rot),0).argument())
@@ -145,13 +145,18 @@ def spiral_curve_to_line(origin, hdg, length,curvStart, lane_data, quad_number =
         # deltax and deltay give coordinates for theta=0
         pt = pt.rotate(tangent2.argument())
         # Spiral is relative to the starting coordinates
-        current_hdg = distance_scaled*distance_scaled*anti_clockwise + hdg
-        tangent = Vector(math.cos(current_hdg),math.sin(current_hdg),0)
-        tangent = tangent.rotate(90*anti_clockwise)
+        if anti_clockwise == 1: 
+            final_hdg = -distance_scaled**2+3.14
+        if anti_clockwise == -1: 
+            final_hdg = distance_scaled**2-3.14
+    
+        rot = hdg - final_hdg + 3.14
+        #current_hdg = hdg - distance_scaled*distance_scaled*anti_clockwise
+        tangent = Vector(math.cos(rot),math.sin(rot),0)
         total_pts.append(generate_lane_verts(pt,tangent,lane_data))
         # total_pts[0].append(pt.x)
         # total_pts[1].append(pt.y)
-    return total_pts, new_origin
+    return total_pts
 def generate_lane_verts(pt, tangent, lane_data):
     result_pts= []
     result_pts.append(pt)
@@ -209,18 +214,19 @@ def create_blender_mesh(verts, faces, origin, road_number):
     mesh.from_pydata(verts,[],faces)
     mesh.update(calc_edges=True)
 if (__name__ == "__main__"):
-    xml_path = 'C:/Users/stsas/blensor_scripts/debug.xodr'
+    scale = 100
+    xml_path = 'C:/Users/stsas/blensor_scripts/road_specification_v3.xodr'
     tree = ET.parse(xml_path)
     root = tree.getroot()
     geoms = []
     lanes = []
     for road in root.findall('road'):
         for lane in road.iter('lane'):
-            lanes.append(Lane(lane))
+            lanes.append(Lane(lane, 100))
         lane_data = get_lane_widths(lanes)
         i = 0 
         for geom in road.iter('geometry'):
-            data = Geom(geom)
+            data = Geom(geom, 100)
             pts = 0
             if data.type == 'line':
                 print(data.hdg)
@@ -228,10 +234,7 @@ if (__name__ == "__main__"):
             if data.type == 'arc':
                 pts = create_arc(data.origin, data.hdg,data.length,data.curvature,lane_data)
             if data.type == 'spiral':
-                if data.init_curvature != 0: 
-                    pts, data.origin = create_spiral_road(data.origin, data.hdg, data.length, data.init_curvature, data.final_curvature, lane_data)
-                else:
-                    pts= create_spiral_road(data.origin, data.hdg, data.length, data.init_curvature, data.final_curvature, lane_data)
+                pts= create_spiral_road(data.origin, data.hdg, data.length, data.init_curvature, data.final_curvature, lane_data)
             verts = generate_blender_verts(pts)
             faces = generate_blender_faces(verts, lane_data)
             create_blender_mesh(verts,faces,data.origin,i)
