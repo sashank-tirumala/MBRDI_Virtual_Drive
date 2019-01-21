@@ -2,19 +2,19 @@ import xml.etree.ElementTree as ET
 from vector.vector import Vector
 import math
 class Geom:
-    def __init__(self,geom):
-        self.length = float(geom.attrib['length'])
+    def __init__(self,geom,scale=1):
+        self.length = float(geom.attrib['length'])/scale
         self.hdg = float(geom.attrib['hdg'])
         # tangent = Vector(math.sin(self.hdg), math.cos(self.hdg),0)
         # self.hdg = math.radians(tangent.argument())
-        self.origin = Vector(float(geom.attrib['x']), float(geom.attrib['y']), 0)
+        self.origin = Vector(float(geom.attrib['x']), float(geom.attrib['y']), 0)/scale
         for child in geom:
             self.type = child.tag
             if(self.type == 'arc'):
-                self.curvature = float(child.attrib['curvature'])
+                self.curvature = float(child.attrib['curvature'])*scale
             if(self.type == 'spiral'):
-                self.init_curvature = float(child.attrib['curvStart'])
-                self.final_curvature = float(child.attrib['curvEnd'])
+                self.init_curvature = float(child.attrib['curvStart'])*scale
+                self.final_curvature = float(child.attrib['curvEnd'])*scale
     def __repr__(self):
         rep = 'Geometry: \n'
         rep = rep + '   length: '+str(self.length)+'\n'
@@ -26,13 +26,16 @@ class Geom:
         return rep
 
 class Lane:
-    def __init__(self, lane):
+    def __init__(self, lane, scale = 1):
         self.id = float(lane.attrib['id'])
         self.type = lane.attrib['type']
-        self.level = float(lane.attrib['level'])
+        if lane.attrib['level'] == 'false':
+            self.level = 0
+        else:
+            self.level = float(lane.attrib['level'])
         self.width = 0
         for width in lane.iter('width'):
-            self.width = float(width.attrib['a'])
+            self.width = float(width.attrib['a'])/scale
     def __repr__(self):
         str1='id: '+str(self.id)+' width: '+str(self.width)
         return str1 

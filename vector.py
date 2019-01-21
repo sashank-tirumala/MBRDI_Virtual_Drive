@@ -61,7 +61,7 @@ class Vector(object):
         """ Called if 4*self for instance """
         return self.__mul__(other)
             
-    def __div__(self, other):
+    def __truediv__(self, other):
         if type(other) == type(1) or type(other) == type(1.0):
             return Vector(self.x/other, self.y/other, self.z/other)
     
@@ -81,4 +81,4 @@ class Vector(object):
 if(__name__ == "__main__"):
     v = Vector(0,1,0)
     v = v.rotate(90)
-    print(v)
+    print(v/10)
