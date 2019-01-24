@@ -105,12 +105,24 @@ class LaneSection:
     def get_valid_flag(self):
         lanes = self.lanes
         lanes.sort(key=lambda x: x.id, reverse=False)
-        valid_flag = []
+        valid_flag_left = []
+        valid_flag_right = []
         for lane in lanes:
-            if(lane.type == 'border'):
-                valid_flag.append(False)
-            else:
-                valid_flag.append(True)
+            if(lane.id < 0):
+                if(lane.type == 'border' or lane.a + lane.b + lane.c + lane.d == 0):
+                    valid_flag_left.append(False)
+                else:
+                    valid_flag_left.append(True)
+        lanes.sort(key=lambda x: x.id, reverse=True)
+        for lane in lanes:
+            if(lane.id > 0):
+                if(lane.type == 'border' or lane.a + lane.b + lane.c + lane.d == 0):
+                    valid_flag_right.append(False)
+                else:
+                    valid_flag_right.append(True)
+        valid_flag_right.reverse()
+        valid_flag = valid_flag_left + valid_flag_right
+
         return valid_flag
     
 
@@ -376,14 +388,13 @@ class Road:
 
 
 if(__name__ == "__main__"):
-    tree = ET.parse('Crossing8Course.xodr')
+    tree = ET.parse('road_specification_v3.xodr')
     root = tree.getroot()
     i=0
     s= 3.666
     t =0
     for road in root.findall('road'):
         current_road = Road(road)
-        pt,tangent = current_road.get_pt_tangent(s,t)
-        print(pt)
+        print(current_road.lane_sections[0].get_valid_flag())
         
 

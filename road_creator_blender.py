@@ -128,6 +128,7 @@ def generate_blender_faces(blender_verts, valid_flag, lane_data):
     i = 0
     faces = []
     count = 0
+    #print(valid_flag)
     while(i<len(blender_verts)-no_of_lanes-1):
         if(count < no_of_lanes):
             if(valid_flag[count] == True):
@@ -144,6 +145,7 @@ def generate_blender_faces(blender_verts, valid_flag, lane_data):
         else:
             count = 0
         i +=1
+        
     return faces
 def generate_lane_verts(pt, tangent, lane_data, hard_code):
     result_pts= []
@@ -152,6 +154,7 @@ def generate_lane_verts(pt, tangent, lane_data, hard_code):
     left_normal = tangent.rotate(90)
     right_normal = tangent.rotate(-90)
     new_pt = pt
+    #print(lane_data)
     for x in lane_data['left']:
         new_pt = new_pt + left_normal*x
         result_pts.append(new_pt)
@@ -170,7 +173,7 @@ def generate_lane_verts(pt, tangent, lane_data, hard_code):
             
     return result_pts
 
-def create_blender_mesh(verts, faces, origin,heading, road_number):
+def create_blender_mesh(verts, faces, origin,heading, road_number, color):
     name = "road_"+str(road_number)
     mesh = bpy.data.meshes.new(name)
     obj = bpy.data.objects.new(name,mesh)
@@ -180,7 +183,9 @@ def create_blender_mesh(verts, faces, origin,heading, road_number):
     obj.rotation_euler = (0,0,heading)
     # object.location = [0,0,0]
     bpy.context.scene.objects.link(obj)
-    
+    mat = bpy.data.materials.new(name="Material")
+    obj.data.materials.append(mat)
+    obj.data.materials[0].diffuse_color = color
     # #create mesh from python data
     mesh.from_pydata(verts,[],faces)
     mesh.update(calc_edges=True)
@@ -189,7 +194,8 @@ def generate_lane_mark_verts(pt, tangent, lane_data, width, lane_marking = False
     tangent = tangent.normalize()
     left_normal = tangent.rotate(90)
     right_normal = tangent.rotate(-90)
-    print(lane_data)
+    #print(lane_data)
+    pt = pt + Vector(0,0,0.01)
     result_pts.append(pt + (-1*width)*left_normal)
     result_pts.append(pt + (width)*left_normal)
     
@@ -233,7 +239,6 @@ def generate_lane_faces(blender_verts,valid_flag, lane_data):
     faces = []
     count = 0
     count_sections = 0
-    print(len(valid_flag[count_sections]), len(valid_flag))
     while(count_sections < len(valid_flag) and i +len(valid_flag[count_sections])*2 + 1< len(blender_verts)):
         if(count < len(valid_flag[count_sections])):
            
@@ -259,36 +264,46 @@ def generate_lane_faces(blender_verts,valid_flag, lane_data):
     return faces
 
 if (__name__ == "__main__"):
+    bpy.data.scenes['Scene'].render.engine = 'CYCLES'
+    grey = ((0,0,0))
+    white = ((1,1,1))
     scale = 10
     obj_scale = 10
-    xml_path = 'C:/Users/stsas/blensor_scripts/OpenDriveFiles/CrossingComplex8Course.xodr'
+    xml_path = 'C:/Users/stsas/blensor_scripts/OpenDriveFiles/road_specification_v3.xodr'
     tree = ET.parse(xml_path)
     root = tree.getroot()
     i = 0
     mark_length = 10
     hard_code = False
     valid_flag = 0
-    # for road in root.findall('road'):
-    #     current_road = Road(road)
-    #     #lanes = []
-    #     #for lane in road.iter('lane'):
-    #         #lanes.append(Lane(lane, 100))
-    #     #lane_data = get_lane_widths(lanes)
-    #     i = 0 
-    #     lane_data = current_road.lane_sections[0].width(0.01)
-    #     valid_flag = current_road.lane_sections[0].get_valid_flag()
-    #     for geom in current_road.geom:
-    #         if geom.type == 'line':
-    #             pts = create_straight_line(geom.length, current_road,geom.s)
-    #         if geom.type == 'arc':
-    #             pts= create_arc(geom.length,geom.curvature,current_road,geom.s)
-    #         if geom.type == 'spiral':
-    #             pts= create_spiral_road(geom.length, geom.init_curvature,geom.final_curvature, current_road,geom.s)
-    #         verts = generate_blender_verts(pts, scale)
-    #         faces = generate_blender_faces(verts,valid_flag, lane_data)
-    #         create_blender_mesh(verts,faces,geom.origin/scale,geom.hdg,i)
-    #         i+=1
-    
+    signal_counter = 0
+    for road in root.findall('road'):
+        current_road = Road(road)
+        #lanes = []
+        #for lane in road.iter('lane'):
+            #lanes.append(Lane(lane, 100))
+        #lane_data = get_lane_widths(lanes)
+        i = 0 
+        lane_data = current_road.lane_sections[0].width(0.01)
+        valid_flag = current_road.lane_sections[0].get_valid_flag()
+        for geom in current_road.geom:
+            if geom.type == 'line':
+                pts = create_straight_line(geom.length, current_road,geom.s)
+            if geom.type == 'arc':
+                pts= create_arc(geom.length,geom.curvature,current_road,geom.s)
+            if geom.type == 'spiral':
+                pts= create_spiral_road(geom.length, geom.init_curvature,geom.final_curvature, current_road,geom.s)
+            verts = generate_blender_verts(pts, scale)
+            faces = generate_blender_faces(verts,valid_flag, lane_data)
+            create_blender_mesh(verts,faces,geom.origin/scale,geom.hdg,i,grey)
+            i+=1
+        ph = PropHandler()
+        for signal in current_road.signals:
+            orig,tangent = current_road.get_pt_tangent(signal.s,signal.t)
+            #road_origin = current_road.geom[0].origin
+            print(orig)
+            ph.place((orig)/scale, math.radians(tangent.rotate(-90).argument()), obj_scale, signal.name, signal_counter)
+            signal_counter += 1
 
     
     strip_length = mark_length
@@ -304,7 +319,7 @@ if (__name__ == "__main__"):
             if(pt != None):
                 allverts.append(generate_lane_mark_verts(pt,tangent,lane_data, 0.5))
                 valid_flag.append(get_lane_valid_flag(currentRoad.lane_sections[0].lanes, strip_length, mark_length))
-                print(len(allverts))
+                #print(len(allverts))
             #print(pt)
             #allverts.append(pt)
             strip_length -= currentRoad.length/100
@@ -312,12 +327,9 @@ if (__name__ == "__main__"):
                 strip_length = mark_length
         verts = generate_blender_verts(allverts,scale)
         faces = generate_lane_faces(verts, valid_flag, lane_data)
-        create_blender_mesh(verts,faces,Vector(0,0,0),0,0)
+        create_blender_mesh(verts,faces,Vector(0,0,0),0,0,white)
 
-        # ph = PropHandler()
-        #for signal in current_road.signals:
-            #orig,tangent = current_road.get_pt_tangent(signal.s, signal.t)
-            #ph.place(orig/scale, math.radians(tangent.rotate(-90).argument()), obj_scale, signal.name)
+
     # origin = Vector(0,0,0)
     # heading =0
     # valid_flag = [True, False, True, False]
