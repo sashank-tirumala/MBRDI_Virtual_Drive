@@ -8,7 +8,8 @@ class PropHandler():
         'Sg331Kraftfahrstr03.flt' : './sketchup_models/double_speed_limit.dae',
         'Sg274Hoechstgeschw50_03.flt' : './sketchup_models/signal.dae',
         'Sg274Hoechstgeschw30_031.flt' : './sketchup_models/two_forward_sign.dae',
-        'Sg113Schneeglaette01.flt' : './sketchup_models/120_sign.dae'}
+        'Sg113Schneeglaette01.flt' : './sketchup_models/120_sign.dae',
+        'car':'./sketchup_models/car.dae'}
     def place(self,origin,angle,scale,id):
         bpy.ops.wm.collada_import(filepath=self.paths[id])
         bpy.context.selected_objects[0].name = id
