@@ -192,13 +192,16 @@ class Road:
         i = 0
         for geom in self.geom:
             if(i+1 == len(self.geom)):
-                if(s <= self.length*1.25):
-                    return geom
+                if(s > geom.s):
+                    if(s <= geom.s + geom.length):
+                        return geom
+                    else:
+                        return False
                 else:
                     return False
-            if s > geom.s and s < self.geom[i+1].s:
+            if s > geom.s and s < geom.s + geom.length:
                 return geom
-            i += 1
+        return False
         
     def get_lane_data(self,s):
         s = s
@@ -221,8 +224,8 @@ class Road:
         return (self.elev['a'] + self.elev['b']*ds + self.elev['c']*(ds**2)+self.elev['d']*(ds**3))
 
     def get_pt_tangent(self,s,t):
-        def TransformSTtoXY(s, t, roadType, start_s, args):
-    # args = [origin, heading, length, CurvStart, CurvEnd]
+        def TransformSTtoXY(s, t, roadType, start_s,args):
+    # args = [origin, heading,length,CurvStart, CurvEnd]
             if roadType == 'line':
                 tangent = Vector(math.cos(args[1]), math.sin(args[1]), 0)
                 tangent = tangent.normalize()
@@ -233,6 +236,7 @@ class Road:
                 R = 1/args[3]
                 anti_clockwise = 1
                 if R<0 : anti_clockwise = -1
+                if s < start_s: print('yes')
                 theta = (s - start_s)/R
                 tangent = Vector(math.cos(args[1]), math.sin(args[1]), 0)
                 tangent = tangent.normalize()
@@ -285,24 +289,101 @@ class Road:
             y = pt.y
             return pt,tangent
         geom = self.get_geometry(s)
-        if(geom.type == 'line'):
+        if(geom == False):
+            return None,None
+        elif(geom.type == 'line'):
             pt,tangent = TransformSTtoXY(s,t,'line',geom.s,[geom.origin,geom.hdg,geom.length])
         elif (geom.type == 'arc'):
             pt,tangent = TransformSTtoXY(s,t,'arc',geom.s,[geom.origin,geom.hdg,geom.length,geom.curvature])
         elif (geom.type == 'spiral'):
             pt,tangent = TransformSTtoXY(s,t,'spiral',geom.s,[geom.origin,geom.hdg,geom.length,geom.init_curvature,geom.final_curvature]) #Need not scale s,t, because it uses length not s,t and length is scaled, only works for scaling > 1, shitty fix IK
         return pt,tangent
+    
+    # def get_pt_tangent_lane(self,s,t):
+    #     def TransformSTtoXY(s, t, roadType, start_s,length,curvInit = 0, curvEnd = 0):
+    # # args = [origin, heading, length, CurvStart, CurvEnd]
+    #         if(s > start_s + length):
+    #             return None, None
+    #         if roadType == 'line':
+    #             tangent = Vector(1,0,0)
+    #             tangent = tangent.normalize()
+    #             left_normal = tangent.rotate(90)
+    #             pt = (s - start_s)*tangent + t*left_normal
+
+    #         elif roadType == 'arc':
+    #             R = 1/curvInit
+    #             anti_clockwise = 1
+    #             if R<0 : anti_clockwise = -1
+    #             theta = (s - start_s)/R
+    #             tangent = Vector(1,0,0)
+    #             tangent = tangent.normalize()
+    #             init_normal = tangent.rotate(anti_clockwise*90)
+    #             centre = init_normal*abs(R)
+    #             pt_vec = - centre
+    #             pt_vec = pt_vec.normalize()
+    #             rot_pt_vec = pt_vec.rotate(180*theta/math.pi)
+    #             tangent = tangent.rotate(180*theta/math.pi)
+    #             pt = (abs(R)-t)*rot_pt_vec
+
+    #         elif roadType == 'spiral':
+    #             if curvStart == 0:
+    #                 ltoc = True
+    #                 R = 1/curvEnd
+    #             else:
+    #                 ltoc = False
+    #                 R = 1/curvStart
+
+    #             anti_clockwise = 1
+    #             if R<0 : anti_clockwise = -1
+
+    #             a = 1 / math.sqrt(2 * length * abs(R))  # Scale factor
+
+    #             RESOLUTION = 0.1
+    #             num_sections = 1000
+    #             distance = 0
+    #             ahead = 1
+    #             done = False
+    #             scaling = 1
+    #             dx = length/num_sections
+    #             prev_point = Vector(0,0,0)
+    #             for i in range(num_sections):
+    #                 if ltoc:
+    #                     pt_hdg = anti_clockwise*(distance*a)**2 
+    #                 else:
+    #                     pt_hdg = anti_clockwise*((length*a)**2-((length-distance)*a)**2)
+    #                 tangent = Vector(math.cos(pt_hdg), math.sin(pt_hdg), 0)
+    #                 t_norm = tangent.normalize()
+    #                 pt = prev_point + ahead*dx*t_norm
+    #                 prev_point = pt 
+    #                 distance += ahead*dx*scaling
+    #                 if distance > s - start_s:
+    #                     break
+    #             left_normal = t_norm.rotate(90)
+    #             pt = left_normal*t + pt
+
+    #         x = pt.x
+    #         y = pt.y
+    #         return pt,tangent
+    #     geom = self.get_geometry(s)
+    #     if(geom.type == 'line'):
+    #         pt,tangent = TransformSTtoXY(s,t,'line',geom.s,geom.length,[geom.origin,geom.hdg])
+    #     elif (geom.type == 'arc'):
+    #         pt,tangent = TransformSTtoXY(s,t,'arc',geom.s,geom.length[geom.origin,geom.hdg,geom.curvature])
+    #     elif (geom.type == 'spiral'):
+    #         pt,tangent = TransformSTtoXY(s,t,'spiral',geom.s,geom.length[geom.origin,geom.hdg,geom.init_curvature,geom.final_curvature]) #Need not scale s,t, because it uses length not s,t and length is scaled, only works for scaling > 1, shitty fix IK
+    #     return pt,tangent
        
 
 
 if(__name__ == "__main__"):
-    tree = ET.parse('road_specification_v3.xodr')
+    tree = ET.parse('Crossing8Course.xodr')
     root = tree.getroot()
     i=0
+    s= 3.666
+    t =0
     for road in root.findall('road'):
         current_road = Road(road)
-        for lane_section in current_road.lane_sections:
-            print(lane_section.get_valid_flag())
-    
+        pt,tangent = current_road.get_pt_tangent(s,t)
+        print(pt)
         
 
