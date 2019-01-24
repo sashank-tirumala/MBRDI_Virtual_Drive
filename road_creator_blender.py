@@ -184,28 +184,28 @@ def create_blender_mesh(verts, faces, origin,heading, road_number):
     # #create mesh from python data
     mesh.from_pydata(verts,[],faces)
     mesh.update(calc_edges=True)
-def generate_lane_mark_verts(pt, tangent, lane_data, lane_marking = False):
+def generate_lane_mark_verts(pt, tangent, lane_data, width, lane_marking = False):
     result_pts= []
     tangent = tangent.normalize()
     left_normal = tangent.rotate(90)
     right_normal = tangent.rotate(-90)
-
-    result_pts.append(pt + (-0.5)*left_normal)
-    result_pts.append(pt + (0.5)*left_normal)
+    print(lane_data)
+    result_pts.append(pt + (-1*width)*left_normal)
+    result_pts.append(pt + (width)*left_normal)
     
     new_pt = pt
     for x in lane_data['left']:
         new_pt = new_pt + x*left_normal
-        new_pt1 = new_pt + (-0.5)*left_normal
-        new_pt2 = new_pt + (+0.5)*left_normal
+        new_pt1 = new_pt + (-1*width)*left_normal
+        new_pt2 = new_pt + (width)*left_normal
         result_pts.append(new_pt1)
         result_pts.append(new_pt2)
     result_pts = list(reversed(result_pts))
     new_pt=pt
     for x in lane_data['right']:
         new_pt = new_pt + x*right_normal
-        new_pt1 = new_pt + (-0.5)*right_normal
-        new_pt2 = new_pt + (+0.5)*right_normal
+        new_pt1 = new_pt + (-width)*right_normal
+        new_pt2 = new_pt + (+width)*right_normal
         
         result_pts.append(new_pt1)
         result_pts.append(new_pt2)
@@ -233,31 +233,35 @@ def generate_lane_faces(blender_verts,valid_flag, lane_data):
     faces = []
     count = 0
     count_sections = 0
-    while(i < len(valid_flag)):
+    print(len(valid_flag[count_sections]), len(valid_flag))
+    while(count_sections < len(valid_flag) and i +len(valid_flag[count_sections])*2 + 1< len(blender_verts)):
         if(count < len(valid_flag[count_sections])):
-            #print(valid_flag[count_sections])
+           
             if(valid_flag[count_sections][count] == True):
                 A = i
                 B = i + 1
                 C = i + (len(valid_flag[count_sections]))*2 + 1
-                D = i + (len(valid_flag[count_sections]))*2
+                D = i + (len(valid_flag[count_sections]))*2 
 
                 face = [A,B,C,D]
                 faces.append(face)
                 count = count + 1
             else :
+               
                 count += 1
+            i += 2
         else:
+            
             count = 0
             count_sections += 1
         
-        i += 2
+        
     return faces
 
 if (__name__ == "__main__"):
     scale = 10
     obj_scale = 10
-    xml_path = 'C:/Users/stsas/blensor_scripts/OpenDriveFiles/Crossing8Course.xodr'
+    xml_path = 'C:/Users/stsas/blensor_scripts/OpenDriveFiles/CrossingComplex8Course.xodr'
     tree = ET.parse(xml_path)
     root = tree.getroot()
     i = 0
@@ -286,28 +290,29 @@ if (__name__ == "__main__"):
     #         i+=1
     
 
-    allverts= [ ]
+    
     strip_length = mark_length
-    valid_flag = []
     for road in root.findall('road'):
+        allverts= [ ]
+        valid_flag = []
         currentRoad = Road(road)
         for s in np.arange(0, currentRoad.length, currentRoad.length/100):
             lane_data = currentRoad.get_lane_data(s)
             currentRoad.lane_sections[0].lanes
-            valid_flag.append(get_lane_valid_flag(currentRoad.lane_sections[0].lanes, strip_length, mark_length))
             pt,tangent = currentRoad.get_pt_tangent(s,0)
             lane_data = currentRoad.get_lane_data(s)
             if(pt != None):
-                allverts.append(generate_lane_mark_verts(pt,tangent,lane_data))
+                allverts.append(generate_lane_mark_verts(pt,tangent,lane_data, 0.5))
+                valid_flag.append(get_lane_valid_flag(currentRoad.lane_sections[0].lanes, strip_length, mark_length))
+                print(len(allverts))
             #print(pt)
             #allverts.append(pt)
             strip_length -= currentRoad.length/100
             if(strip_length < -mark_length):
                 strip_length = mark_length
-    verts = generate_blender_verts(allverts,scale)
-    faces = generate_lane_faces(verts, valid_flag, lane_data)
-    create_blender_mesh(verts,faces,Vector(0,0,0),0,0)
-    create_blender_mesh(verts,faces,Vector(0,0,0),0,0)
+        verts = generate_blender_verts(allverts,scale)
+        faces = generate_lane_faces(verts, valid_flag, lane_data)
+        create_blender_mesh(verts,faces,Vector(0,0,0),0,0)
 
         # ph = PropHandler()
         #for signal in current_road.signals:
