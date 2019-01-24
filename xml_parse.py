@@ -26,7 +26,19 @@ class Geom:
         if self.type == 'arc' : rep = rep + '   arc: ' + str(self.curvature)+'\n'
         if self.type == 'spiral': rep = rep + '   spiral: '+str(self.init_curvature)+' '+str(self.final_curvature) +'\n'
         return rep
-
+class RoadMark:
+    def __init__(self, roadmark):
+        self.sOffset = float(roadmark.attrib['sOffset'])
+        self.type = roadmark.attrib['type']
+        self.width = float(roadmark.attrib['width'])
+        self.height = float(roadmark.attrib.get('height',0))
+    def __repr__(self):
+        rep = 'Road Mark: \n'
+        rep = rep + '   type: '+str(self.type)+'\n'
+        rep = rep + '   width: '+str(self.width)+'\n'
+        rep = rep + '   height: '+str(self.height)+'\n'
+        rep = rep + '   sOffset: '+str(self.sOffset)+'\n'
+        return rep
 class Lane:
     def __init__(self, lane):
         #self.scale = scale
@@ -38,15 +50,20 @@ class Lane:
         self.c = 0
         self.d = 0
         self.sOffset = 0
+        self.is_roadmark = False
         for width in lane.iter('width'):
             self.a = float(width.attrib['a'])
             self.b = float(width.attrib['b'])
             self.c = float(width.attrib['c'])
             self.d = float(width.attrib['d'])
             self.sOffset = float(width.attrib['sOffset'])
+        for roadmark in lane.iter('roadMark'):
+            self.road_mark = RoadMark(roadmark)
+            self.is_roadmark = True
 
     def __repr__(self):
-        str1='id: '+str(self.id)+' width: '+str(self.width)
+        str1='id: '+str(self.id)+' width: '+str(self.width) +'\n'
+        str1 = str1 +'  '+str(self.road_mark)+'\n'
         return str1 
     def width(self,s):
         ds = s - self.sOffset if s>self.sOffset else 0
@@ -69,38 +86,6 @@ class LaneSection:
         for lane in self.lanes:
             str1 = str1+' '+str(lane)+'\n'
         return str1
-    def get_lane_widths(self):
-        lanes = self.lanes
-        lane_data = {'left':0,'right':0}
-        lanes.sort(key=lambda x: x.id, reverse=False)
-        temp = []
-        for lane in lanes:
-            if(lane.id > 0):
-                temp.append(lane.width)  
-        lane_data['right'] = temp
-        lanes.sort(key=lambda x: x.id, reverse=True)
-        temp = []
-        for lane in lanes:
-            if(lane.id < 0):
-                temp.append(lane.width)  
-        lane_data['left'] = temp
-        return lane_data
-    def get_lane_width(self,s):
-        lanes = self.lanes
-        lane_data = {'left':0,'right':0}
-        lanes.sort(key=lambda x: x.id, reverse=False)
-        temp = []
-        for lane in lanes:
-            if(lane.id > 0):
-                temp.append(lane.width(s))  
-        lane_data['right'] = temp
-        lanes.sort(key=lambda x: x.id, reverse=True)
-        temp = []
-        for lane in lanes:
-            if(lane.id < 0):
-                temp.append(lane.width(s))  
-        lane_data['left'] = temp
-        return lane_data
     def width(self,s):
         lanes = self.lanes
         lane_data = {'left':0,'right':0}
@@ -117,25 +102,34 @@ class LaneSection:
                 temp.append(lane.width(s))  
         lane_data['left'] = temp
         return lane_data
+    def get_valid_flag(self):
+        lanes = self.lanes
+        lanes.sort(key=lambda x: x.id, reverse=False)
+        valid_flag = []
+        for lane in lanes:
+            if(lane.type == 'border'):
+                valid_flag.append(False)
+            else:
+                valid_flag.append(True)
+        return valid_flag
     
 
 class Signal:
-    def __init__(self, signal, scale = 1):
-        self.s = float(signal.attrib['s'])/scale
-        self.t = float(signal.attrib['t'])/scale
+    def __init__(self, signal):
+        self.s = float(signal.attrib['s'])
+        self.t = float(signal.attrib['t'])
         self.name = signal.attrib.get('name', None)
         self.dynamic = signal.attrib.get('dynamic', None)
         self.orientation = signal.attrib.get('orientation',None) == '+' if signal.attrib.get('orientation',None) != None else None
-        self.zOffset = float(signal.attrib.get('zOffset',None))/scale if signal.attrib.get('zOffset',None) != None else None
-        self.type = signal.attrib.get('type', None)
+        self.zOffset = float(signal.attrib.get('zOffset',0))
         self.country = signal.attrib.get('country', None)
         self.subtype = signal.attrib.get('subtype', None)
-        self.value = float(signal.attrib.get('value',None))/scale if signal.attrib.get('value',None) != None else None
+        self.value = float(signal.attrib.get('value',0))
         self.unit = signal.attrib.get('unit', None)
-        self.hOffset = float(signal.attrib.get('hOffset',None))/scale if signal.attrib.get('hOffset',None) != None else None 
-        self.pitch = float(signal.attrib.get('pitch',None))/scale if signal.attrib.get('pitch',None) != None else None
-        self.roll = float(signal.attrib.get('roll',None))/scale if signal.attrib.get('roll',None) != None else None
-        self.height = float(signal.attrib.get('height',None))/scale if signal.attrib.get('height',None) != None else None
+        self.hOffset = float(signal.attrib.get('hOffset',0))
+        self.pitch = float(signal.attrib.get('pitch',0))
+        self.roll = float(signal.attrib.get('roll',0))
+        self.height = float(signal.attrib.get('height',0))
     def __repr__(self):
         str1=''
         str1 = str1+'Signal: '+'\n'
@@ -198,7 +192,7 @@ class Road:
         i = 0
         for geom in self.geom:
             if(i+1 == len(self.geom)):
-                if(s < self.length):
+                if(s <= self.length*1.25):
                     return geom
                 else:
                     return False
@@ -227,27 +221,28 @@ class Road:
         return (self.elev['a'] + self.elev['b']*ds + self.elev['c']*(ds**2)+self.elev['d']*(ds**3))
 
     def get_pt_tangent(self,s,t):
-        def TransformSTtoXY(s, t, roadType, args):
+        def TransformSTtoXY(s, t, roadType, start_s, args):
     # args = [origin, heading, length, CurvStart, CurvEnd]
             if roadType == 'line':
                 tangent = Vector(math.cos(args[1]), math.sin(args[1]), 0)
                 tangent = tangent.normalize()
                 left_normal = tangent.rotate(90)
-                pt = s*tangent + t*left_normal + args[0]
+                pt = (s - start_s)*tangent + t*left_normal + args[0]
 
             elif roadType == 'arc':
                 R = 1/args[3]
                 anti_clockwise = 1
                 if R<0 : anti_clockwise = -1
-                theta = s/R
+                theta = (s - start_s)/R
                 tangent = Vector(math.cos(args[1]), math.sin(args[1]), 0)
                 tangent = tangent.normalize()
                 init_normal = tangent.rotate(anti_clockwise*90)
-                centre = args[0] + init_normal*R
+                centre = args[0] + init_normal*abs(R)
                 pt_vec = args[0] - centre
                 pt_vec = pt_vec.normalize()
                 rot_pt_vec = pt_vec.rotate(180*theta/math.pi)
-                pt = (R-t)*rot_pt_vec + centre
+                tangent = tangent.rotate(180*theta/math.pi)
+                pt = (abs(R)-t)*rot_pt_vec + centre
 
             elif roadType == 'spiral':
                 if args[3] == 0:
@@ -263,7 +258,7 @@ class Road:
                 a = 1 / math.sqrt(2 * args[2] * abs(R))  # Scale factor
 
                 RESOLUTION = 0.1
-                num_sections = 100
+                num_sections = 1000
                 distance = 0
                 ahead = 1
                 done = False
@@ -275,22 +270,14 @@ class Road:
                     if ltoc:
                         pt_hdg = anti_clockwise*(distance*a)**2 + args[1]
                     else:
-                        pt_hdg = -(length*a)**2-anti_clockwise*((length-distance)*a)**2 + args[1]
+                        pt_hdg = anti_clockwise*((length*a)**2-((length-distance)*a)**2) + args[1]
                     tangent = Vector(math.cos(pt_hdg), math.sin(pt_hdg), 0)
                     t_norm = tangent.normalize()
                     pt = prev_point + ahead*dx*t_norm
                     prev_point = pt 
                     distance += ahead*dx*scaling
-                    if abs(distance-s) <= RESOLUTION:
+                    if distance > s - start_s:
                         break
-                    elif distance > s:
-                        if ahead == 1:
-                            scaling = scaling/2
-                        ahead = -1
-                    elif distance < s:
-                        if ahead == -1:
-                            scaling = scaling/2
-                        ahead = 1
                 left_normal = t_norm.rotate(90)
                 pt = left_normal*t + pt
 
@@ -299,24 +286,23 @@ class Road:
             return pt,tangent
         geom = self.get_geometry(s)
         if(geom.type == 'line'):
-            pt,tangent = TransformSTtoXY(s,t,'line',[geom.origin,geom.hdg,geom.length])
+            pt,tangent = TransformSTtoXY(s,t,'line',geom.s,[geom.origin,geom.hdg,geom.length])
         elif (geom.type == 'arc'):
-            pt,tangent = TransformSTtoXY(s,t,'arc',[geom.origin,geom.hdg,geom.length,geom.curvature])
+            pt,tangent = TransformSTtoXY(s,t,'arc',geom.s,[geom.origin,geom.hdg,geom.length,geom.curvature])
         elif (geom.type == 'spiral'):
-            pt,tangent = TransformSTtoXY(s,t,'spiral',[geom.origin,geom.hdg,geom.length,geom.init_curvature,geom.final_curvature]) #Need not scale s,t, because it uses length not s,t and length is scaled, only works for scaling > 1, shitty fix IK
+            pt,tangent = TransformSTtoXY(s,t,'spiral',geom.s,[geom.origin,geom.hdg,geom.length,geom.init_curvature,geom.final_curvature]) #Need not scale s,t, because it uses length not s,t and length is scaled, only works for scaling > 1, shitty fix IK
         return pt,tangent
        
 
 
 if(__name__ == "__main__"):
-    tree = ET.parse('Crossing8Course.xodr')
+    tree = ET.parse('road_specification_v3.xodr')
     root = tree.getroot()
     i=0
     for road in root.findall('road'):
-        current_road = Road(road,0.1)
-        print(current_road.get_pt_tangent(0.486,0),i)
-        print(current_road.get_lane_data(3.6,0),i)
-        i+=1
+        current_road = Road(road)
+        for lane_section in current_road.lane_sections:
+            print(lane_section.get_valid_flag())
     
         
 
