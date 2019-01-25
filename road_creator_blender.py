@@ -269,7 +269,7 @@ if (__name__ == "__main__"):
     white = ((1,1,1))
     scale = 10
     obj_scale = 10
-    xml_path = 'C:/Users/stsas/blensor_scripts/OpenDriveFiles/road_specification_v3.xodr'
+    xml_path = 'C:/Users/stsas/blensor_scripts/OpenDriveFiles/Crossing8Course.xodr'
     tree = ET.parse(xml_path)
     root = tree.getroot()
     i = 0
@@ -302,7 +302,7 @@ if (__name__ == "__main__"):
             orig,tangent = current_road.get_pt_tangent(signal.s,signal.t)
             #road_origin = current_road.geom[0].origin
             print(orig)
-            ph.place((orig)/scale, math.radians(tangent.rotate(-90).argument()), obj_scale, signal.name, signal_counter)
+            #ph.place((orig)/scale, math.radians(tangent.rotate(-90).argument()), obj_scale, signal.name, signal_counter)
             signal_counter += 1
 
     
@@ -315,9 +315,11 @@ if (__name__ == "__main__"):
             lane_data = currentRoad.get_lane_data(s)
             currentRoad.lane_sections[0].lanes
             pt,tangent = currentRoad.get_pt_tangent(s,0)
+            elev = currentRoad.get_elevation(s)
             lane_data = currentRoad.get_lane_data(s)
             if(pt != None):
-                allverts.append(generate_lane_mark_verts(pt,tangent,lane_data, 0.5))
+                new_pt = pt + Vector(0,0,elev)
+                allverts.append(generate_lane_mark_verts(new_pt,tangent,lane_data, 0.5))
                 valid_flag.append(get_lane_valid_flag(currentRoad.lane_sections[0].lanes, strip_length, mark_length))
                 #print(len(allverts))
             #print(pt)
